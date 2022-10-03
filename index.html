@@ -1,0 +1,233 @@
+<html>
+
+<head>
+  <meta content="text/html;charset=utf-8" http-equiv="Content-Type" />
+  <style>
+    html {
+      max-width: 100%;
+      margin: 0;
+      line-height: 1.75;
+      font-size: 1.25em;
+      font-family: -apple-system, BlinkMacSystemFont, Avenir, "Avenir Next", "Segoe UI", "Roboto", "Oxygen", "Ubuntu", "Cantarell", "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+    }
+
+    body {
+      margin: 0;
+    }
+
+    fieldset {
+      margin: 5px;
+      padding: 5px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+
+      font-size: 0.8em;
+      line-height: 1;
+
+      background-color: rgb(50, 50, 50);
+      color: #eeeeee;
+      border-bottom: 1px solid #676767;
+    }
+
+    h1 {
+      margin: 0px 24px;
+    }
+
+    .topbar .desc {
+      padding-top: 8px;
+    }
+
+    .topbar .spacer {
+      flex-grow: 1;
+    }
+
+    .content {
+      /* margin: 10px; */
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+    }
+
+    form {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    .buttons {
+      margin: 10px;
+    }
+
+    .inputs {
+      flex-grow: 1;
+      min-height: 30%;
+    }
+
+    .result {
+      flex-grow: 1;
+      font-family: monospace;
+    }
+
+    .hidden {
+      display: none;
+    }
+
+
+    .center {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    input[type=submit] {
+      width: 200px;
+      height: 50px;
+      font-size: large;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    textarea {
+      width: 100%;
+      height: 100%;
+      margin-left: 10px;
+      margin-right: 10px;
+    }
+
+    .added {
+      background-color: #abf2bc;
+    }
+
+    .removed {
+      background-color: rgba(255, 130, 130, 0.4);
+    }
+
+    .result table {
+      white-space: pre;
+      width: 100%;
+    }
+
+    .result td.contents {
+      width: 48%;
+    }
+
+    .result td.separator {
+      width: 20px;
+    }
+
+    .result td:has(.added) {
+      background-color: #e6ffec;
+    }
+
+    .result td:has(.removed) {
+      background-color: rgba(255, 130, 130, 0.20);
+    }
+  </style>
+</head>
+
+<body>
+  <!-- Note the usage of `type=module` here as this is an ES6 module -->
+  <script type="module">
+    import { diff, default as init, wasm_init } from './wasm_textdiff.js';
+
+    async function run() {
+      await init('./wasm_textdiff_bg.wasm');
+
+      // make the function available to the browser
+      wasm_init();
+      window.diff = diff;
+    }
+
+    run();
+
+    window.doDiff = function (left, right) {
+      var algo = document.querySelector("input[name=algo]:checked");
+      var diff_by = document.querySelector("input[name=diff_by]:checked");
+
+      var diffResult = document.getElementById("diff_result");
+      console.time("diff");
+      var result = diff(algo.value, left.value, right.value);
+      console.timeEnd("diff");
+      diffResult.innerHTML = result.get_table();
+      diffResult.classList.remove("hidden");
+    }
+
+    window.pasteFromClipboard = function (element) {
+      navigator.clipboard
+        .readText()
+        .then(
+          (clipText) => (element.value = clipText)
+        );
+    }
+
+    window.uploadFile = function (fileEl, textAreaEl) {
+      console.log("uploadFile", fileEl, textAreaEl);
+      var fileToLoad = fileEl.files[0];
+      var fileReader = new FileReader();
+      fileReader.onload = function (fileLoadedEvent) {
+        textAreaEl.value = fileLoadedEvent.target.result;
+      };
+      fileReader.readAsText(fileToLoad, "UTF-8");
+    }
+  </script>
+
+  <div class="topbar">
+    <h1>Text Diff</h1>
+
+    <span class="desc">Diff text in your browser fast.</span>
+
+    <div class="spacer"></div>
+
+    <fieldset>
+      <legend>Diff by</legend>
+      <input type="radio" name="diff_by" id="word" value="word" checked />
+      <label for="word">Word</label>
+
+      <input type="radio" name="diff_by" id="line" value="line" />
+      <label for="line">Line</label>
+    </fieldset>
+
+    <fieldset>
+      <legend>Diff Algorithm</legend>
+
+      <input type="radio" name="algo" id="myers" value="myers" checked />
+      <label for="myers">Myers</label>
+
+      <input type="radio" name="algo" id="lcs" name="algo" value="lcs" />
+      <label for="lcs">LCS</label>
+
+      <input type="radio" name="algo" id="patience" value="patience" />
+      <label for="patience">Patience</label>
+    </fieldset>
+  </div>
+
+  <form onSubmit="return false">
+    <div class="content">
+      <div class="buttons center">
+        <button onclick="pasteFromClipboard(left)">Paste</button>
+        <input type="file" name="left_file" onchange="uploadFile(left_file, left)"></input>
+        <input type="submit" value="Show Differences" onClick="doDiff(left, right);">
+
+        <button onclick="pasteFromClipboard(right)">Paste</button>
+        <input type="file" name="right_file" onchange="uploadFile(right_file, right)"></input>
+      </div>
+      <div class="inputs center">
+        <textarea id="left" name="left">
+      </textarea>
+        <textarea id="right" name="right">
+       </textarea>
+      </div>
+
+      <hr />
+      <div id="diff_result" class="result hidden">
+      </div>
+    </div>
+
+  </form>
+
+</body>
+
+</html>
